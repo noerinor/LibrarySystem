@@ -2,7 +2,7 @@
 using LibraryDLL.Data;
 using LibraryDLL.Models;
 using Microsoft.EntityFrameworkCore;
-using System;
+using System.Collections.Generic;
 using System.Linq;
 
 public class ReaderFunctions
@@ -16,87 +16,35 @@ public class ReaderFunctions
         _readerId = readerId;
     }
 
-    public void SearchBooksByTitle()
+    
+    public List<Book> SearchBooksByTitle(string title)
     {
-        Console.WriteLine("Write a name of book:");
-        var title = Console.ReadLine();
-
-        var books = _context.Books
+        return _context.Books
             .Where(b => b.Title.Contains(title))
             .ToList();
-
-        if (books.Any())
-        {
-            Console.WriteLine("\nBooks Found:");
-            foreach (var book in books)
-            {
-                Console.WriteLine($"ID: {book.Id}, Name: {book.Title}, Authors: {string.Join(", ", book.Authors.Select(a => $"{a.FirstName} {a.LastName}"))}, Year: {book.Year}");
-            }
-        }
-        else
-        {
-            Console.WriteLine("Books by your request havent been found.");
-        }
     }
 
-    public void SearchBooksByAuthor()
+    
+    public List<Book> SearchBooksByAuthor(string authorName)
     {
-        Console.WriteLine("Write name or surname of author:");
-        var authorName = Console.ReadLine();
-
-        var books = _context.Books
+        return _context.Books
             .Where(b => b.Authors.Any(a => a.FirstName.Contains(authorName) || a.LastName.Contains(authorName)))
             .ToList();
-
-        if (books.Any())
-        {
-            Console.WriteLine("\nBooks Found:");
-            foreach (var book in books)
-            {
-                Console.WriteLine($"ID: {book.Id}, Name: {book.Title}, Authors: {string.Join(", ", book.Authors.Select(a => $"{a.FirstName} {a.LastName}"))}, YEar: {book.Year}");
-            }
-        }
-        else
-        {
-            Console.WriteLine("Books by your request havent been found.");
-        }
     }
 
-    public void ViewBorrowedBooks()
+    
+    public List<BorrowedBook> ViewBorrowedBooks()
     {
-        var borrowedBooks = _context.BorrowedBooks
+        return _context.BorrowedBooks
             .Include(bb => bb.Book)
             .Where(bb => bb.ReaderId == _readerId)
             .OrderBy(bb => bb.ReturnDate)
             .ToList();
-
-        if (borrowedBooks.Any())
-        {
-            Console.WriteLine("\nBooks you have taken:");
-            foreach (var borrowedBook in borrowedBooks)
-            {
-                var status = borrowedBook.ActualReturnDate.HasValue ? "Returned" : "Not Returned";
-                Console.WriteLine($"Book: {borrowedBook.Book.Title}, Taken: {borrowedBook.BorrowedDate.ToShortDateString()}, Return till: {borrowedBook.ReturnDate.ToShortDateString()}, Status: {status}");
-            }
-        }
-        else
-        {
-            Console.WriteLine("You dont have taken books.");
-        }
     }
 
-    public void BorrowBook()
+    
+    public void BorrowBook(int bookId)
     {
-        Console.WriteLine("Write book ID that you want to take:");
-        var bookId = int.Parse(Console.ReadLine());
-
-        var book = _context.Books.FirstOrDefault(b => b.Id == bookId);
-        if (book == null)
-        {
-            Console.WriteLine("Book not found.");
-            return;
-        }
-
         var borrowedBook = new BorrowedBook
         {
             BookId = bookId,
@@ -107,68 +55,37 @@ public class ReaderFunctions
 
         _context.BorrowedBooks.Add(borrowedBook);
         _context.SaveChanges();
-        Console.WriteLine("Book taken!");
     }
 
-    public void ReturnBook()
+    
+    public void ReturnBook(int bookId)
     {
-        Console.WriteLine("Enter the ID of the book you want to return:");
-        var bookId = int.Parse(Console.ReadLine());
-
         var borrowedBook = _context.BorrowedBooks
             .FirstOrDefault(bb => bb.BookId == bookId && bb.ReaderId == _readerId && bb.ActualReturnDate == null);
 
-        if (borrowedBook == null)
+        if (borrowedBook != null)
         {
-            Console.WriteLine("Book not found or already returned.");
-            return;
+            borrowedBook.ActualReturnDate = DateTime.Now;
+            _context.SaveChanges();
         }
-
-        borrowedBook.ActualReturnDate = DateTime.Now;
-        _context.SaveChanges();
-        Console.WriteLine("Book returned successfully!");
     }
-    public void ViewReturnedBooks()
+
+    
+    public List<BorrowedBook> ViewReturnedBooks()
     {
-        var returnedBooks = _context.BorrowedBooks
+        return _context.BorrowedBooks
             .Include(bb => bb.Book)
             .Where(bb => bb.ReaderId == _readerId && bb.ActualReturnDate != null)
             .OrderByDescending(bb => bb.ActualReturnDate)
             .ToList();
-
-        if (returnedBooks.Any())
-        {
-            Console.WriteLine("\nYour returned books:");
-            foreach (var returnedBook in returnedBooks)
-            {
-                Console.WriteLine($"Book: {returnedBook.Book.Title}, Borrowed: {returnedBook.BorrowedDate.ToShortDateString()}, Returned: {returnedBook.ActualReturnDate.Value.ToShortDateString()}");
-            }
-        }
-        else
-        {
-            Console.WriteLine("You have no returned books.");
-        }
     }
 
-    public void CheckOverdueBooks()
+    
+    public List<BorrowedBook> CheckOverdueBooks()
     {
-        var overdueBooks = _context.BorrowedBooks
+        return _context.BorrowedBooks
             .Include(bb => bb.Book)
             .Where(bb => bb.ReaderId == _readerId && bb.ActualReturnDate == null && bb.ReturnDate < DateTime.Now)
             .ToList();
-
-        if (overdueBooks.Any())
-        {
-            Console.WriteLine("\nYou have overdue books:");
-            foreach (var overdueBook in overdueBooks)
-            {
-                Console.WriteLine($"Book: {overdueBook.Book.Title}, Due Date: {overdueBook.ReturnDate.ToShortDateString()}");
-            }
-        }
-        else
-        {
-            Console.WriteLine("You have no overdue books.");
-        }
     }
-
 }
